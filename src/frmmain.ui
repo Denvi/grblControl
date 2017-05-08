@@ -664,7 +664,7 @@ QSlider::handle:horizontal:hover {
                  <double>999.000000000000000</double>
                 </property>
                 <property name="value">
-                 <double>1.000000000000000</double>
+                 <double>5.000000000000000</double>
                 </property>
                </widget>
               </item>
@@ -692,7 +692,7 @@ QSlider::handle:horizontal:hover {
                  <double>999.000000000000000</double>
                 </property>
                 <property name="value">
-                 <double>-1.000000000000000</double>
+                 <double>-10.000000000000000</double>
                 </property>
                </widget>
               </item>
@@ -963,6 +963,31 @@ QSlider::handle:horizontal:hover {
            </property>
            <property name="text">
             <string>Autoscroll</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="chkUseProbeHeight">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>22</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Use Probe Height</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
            </property>
           </widget>
          </item>
@@ -1542,7 +1567,7 @@ QSlider::handle:horizontal:hover {
             <x>0</x>
             <y>-416</y>
             <width>228</width>
-            <height>691</height>
+            <height>685</height>
            </rect>
           </property>
           <property name="sizePolicy">
@@ -2463,8 +2488,30 @@ QSlider::handle:horizontal:hover {
                  </item>
                  <item>
                   <widget class="QCheckBox" name="chkKeyboardControl">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
                    <property name="text">
                     <string>Keyboard control</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="chkLaserMode">
+                   <property name="enabled">
+                    <bool>true</bool>
+                   </property>
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="text">
+                    <string>Laser Mode</string>
                    </property>
                   </widget>
                  </item>
@@ -2616,7 +2663,7 @@ padding-right: 8;</string>
      <x>0</x>
      <y>0</y>
      <width>952</width>
-     <height>26</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnuFile">

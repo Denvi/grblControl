@@ -300,6 +300,7 @@ bool frmMain::isGCodeFile(QString fileName)
           || fileName.endsWith(".nc", Qt::CaseInsensitive)
           || fileName.endsWith(".ncc", Qt::CaseInsensitive)
           || fileName.endsWith(".ngc", Qt::CaseInsensitive)
+          || fileName.endsWith(".gcode", Qt::CaseInsensitive)
           || fileName.endsWith(".tap", Qt::CaseInsensitive);
 }
 
@@ -363,6 +364,7 @@ void frmMain::loadSettings()
     m_settings->setLaserPowerMax(set.value("laserPowerMax", 100).toInt());
     m_settings->setRapidSpeed(set.value("rapidSpeed", 0).toInt());
     m_settings->setHeightmapProbingFeed(set.value("heightmapProbingFeed", 0).toInt());
+    m_settings->setHeightmapProbeHeight(set.value("heightmapProbeHeight", 0).toDouble());
     m_settings->setAcceleration(set.value("acceleration", 10).toInt());
     m_settings->setToolAngle(set.value("toolAngle", 0).toDouble());
     m_settings->setToolType(set.value("toolType", 0).toInt());
@@ -453,6 +455,9 @@ void frmMain::loadSettings()
     ui->cboHeightMapInterpolationType->setCurrentIndex(set.value("heightmapInterpolationType", 0).toInt());
     ui->chkHeightMapInterpolationShow->setChecked(set.value("heightmapInterpolationShow", false).toBool());
 
+    ui->chkLaserMode->setChecked(set.value("laserMode", false).toBool());
+    ui->chkUseProbeHeight->setChecked(set.value("useProbeHeight", false).toBool());
+
     foreach (ColorPicker* pick, m_settings->colors()) {
         pick->setColor(QColor(set.value(pick->objectName().mid(3), "black").toString()));
     }
@@ -516,6 +521,7 @@ void frmMain::saveSettings()
     set.setValue("restoreMode", m_settings->restoreMode());
     set.setValue("rapidSpeed", m_settings->rapidSpeed());
     set.setValue("heightmapProbingFeed", m_settings->heightmapProbingFeed());
+    set.setValue("heightmapProbeHeight", m_settings->heightmapProbeHeight());
     set.setValue("acceleration", m_settings->acceleration());
     set.setValue("toolAngle", m_settings->toolAngle());
     set.setValue("toolType", m_settings->toolType());
@@ -583,6 +589,9 @@ void frmMain::saveSettings()
     set.setValue("heightmapInterpolationStepY", ui->txtHeightMapInterpolationStepY->value());
     set.setValue("heightmapInterpolationType", ui->cboHeightMapInterpolationType->currentIndex());
     set.setValue("heightmapInterpolationShow", ui->chkHeightMapInterpolationShow->isChecked());
+
+    set.setValue("laserMode", ui->chkLaserMode->isChecked());
+    set.setValue("useProbeHeight", ui->chkUseProbeHeight->isChecked());
 
     foreach (ColorPicker* pick, m_settings->colors()) {
         set.setValue(pick->objectName().mid(3), pick->color().name());
@@ -723,7 +732,12 @@ void frmMain::updateControlsState() {
 
     ui->cmdFileSend->menu()->actions().first()->setEnabled(!ui->cmdHeightMapMode->isChecked());
 
-    m_selectionDrawer.setVisible(!ui->cmdHeightMapMode->isChecked());    
+    m_selectionDrawer.setVisible(!ui->cmdHeightMapMode->isChecked());
+
+    if (ui->cmdHeightMapMode->isChecked()) ui->chkUseProbeHeight->setVisible(true);
+    else{
+        ui->chkUseProbeHeight->setVisible(false);
+    }
 }
 
 void frmMain::openPort()
@@ -1173,6 +1187,7 @@ void frmMain::onSerialPortReadyRead()
                         // "[PRB:0.000,0.000,0.000:0];ok"
                         QRegExp rx(".*PRB:([^,]*),([^,]*),([^]^:]*)");
                         double z = qQNaN();
+
                         if (rx.indexIn(response) != -1) {
                             qDebug() << "probing coordinates:" << rx.cap(1) << rx.cap(2) << rx.cap(3);
                             z = toMetric(rx.cap(3).toDouble());
@@ -1609,7 +1624,7 @@ void frmMain::on_cmdFileOpen_clicked()
         if (!saveChanges(false)) return;
 
         QString fileName  = QFileDialog::getOpenFileName(this, tr("Open"), m_lastFolder,
-                                   tr("G-Code files (*.nc *.ncc *.ngc *.tap *.txt);;All files (*.*)"));
+                                   tr("G-Code files (*.nc *.ncc *.ngc *.gcode *.tap *.txt);;All files (*.*)"));
 
         if (!fileName.isEmpty()) m_lastFolder = fileName.left(fileName.lastIndexOf(QRegExp("[/\\\\]+")));
 
@@ -2618,7 +2633,7 @@ bool frmMain::saveProgramToFile(QString fileName, GCodeTableModel *model)
 
 void frmMain::on_actFileSaveTransformedAs_triggered()
 {
-    QString fileName = (QFileDialog::getSaveFileName(this, tr("Save file as"), m_lastFolder, tr("G-Code files (*.nc *.ncc *.ngc *.tap *.txt)")));
+    QString fileName = (QFileDialog::getSaveFileName(this, tr("Save file as"), m_lastFolder, tr("G-Code files (*.nc *.ncc *.ngc *.gcode *.tap *.txt)")));
 
     if (!fileName.isEmpty()) {
         saveProgramToFile(fileName, &m_programHeightmapModel);
@@ -2628,7 +2643,7 @@ void frmMain::on_actFileSaveTransformedAs_triggered()
 void frmMain::on_actFileSaveAs_triggered()
 {
     if (!m_heightMapMode) {
-        QString fileName = (QFileDialog::getSaveFileName(this, tr("Save file as"), m_lastFolder, tr("G-Code files (*.nc *.ncc *.ngc *.tap *.txt)")));
+        QString fileName = (QFileDialog::getSaveFileName(this, tr("Save file as"), m_lastFolder, tr("G-Code files (*.nc *.ncc *.ngc *.gcode *.tap *.txt)")));
 
         if (!fileName.isEmpty()) if (saveProgramToFile(fileName, &m_programModel)) {
             m_programFileName = fileName;
@@ -3151,6 +3166,7 @@ bool frmMain::updateHeightMapGrid()
     // Generate probe program
     double gridStepX = gridPointsX > 1 ? borderRect.width() / (gridPointsX - 1) : 0;
     double gridStepY = gridPointsY > 1 ? borderRect.height() / (gridPointsY - 1) : 0;
+    double zoffset = m_settings->heightmapProbeHeight();
 
     qDebug() << "generating probe program";
 
@@ -3164,6 +3180,20 @@ bool frmMain::updateHeightMapGrid()
 //                         .arg(ui->txtHeightMapGridZTop->value()));
     m_probeModel.setData(m_probeModel.index(m_probeModel.rowCount() - 1, 1), QString("G38.2Z%1")
                          .arg(ui->txtHeightMapGridZBottom->value()));
+
+    if (ui->chkUseProbeHeight->isChecked())
+    {
+        // Check if we have to set Z probe offset for non conductive materials
+        m_probeModel.setData(m_probeModel.index(m_probeModel.rowCount() - 1, 1), QString("G92Z%1") // Set Z to Probe Height
+                             .arg(zoffset));
+        qDebug() << "Setting Z to Probe Height " << zoffset;
+
+    }else
+    {
+        m_probeModel.setData(m_probeModel.index(m_probeModel.rowCount() - 1, 1), QString("G92Z0")); // Set Z as 0
+        qDebug() << "Setting Z to 0 as origin point";
+    }
+
     m_probeModel.setData(m_probeModel.index(m_probeModel.rowCount() - 1, 1), QString("G0Z%1")
                          .arg(ui->txtHeightMapGridZTop->value()));
 
@@ -3181,6 +3211,8 @@ bool frmMain::updateHeightMapGrid()
                                  .arg(ui->txtHeightMapGridZTop->value()));
         }
     }
+
+    m_probeModel.setData(m_probeModel.index(m_probeModel.rowCount() - 1, 1), QString("G0X0Y0")); // Return to Point of Origin
 
     m_programLoading = false;
 
@@ -3976,4 +4008,17 @@ void frmMain::on_cmdStop_clicked()
 {
     m_queue.clear();
     m_serialPort.write(QByteArray(1, char(0x85)));
+}
+
+void frmMain::on_chkLaserMode_toggled(bool checked)
+{
+    if(ui->chkLaserMode->isChecked())
+    {
+        sendCommand("$32=1",-1,1);
+    }else
+    {
+        sendCommand("$32=0",-1,1);
+    }
+
+    updateControlsState();
 }
